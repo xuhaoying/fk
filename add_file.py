@@ -21,7 +21,7 @@ directory_list = [
 ]
 
 # 子文件
-children = {'name': '__init__', 'children': None, 'type':'file'}
+children = {'name': '__init__.py', 'children': None, 'type':'file'}
 
 # 目录结构
 # dir_map = [
