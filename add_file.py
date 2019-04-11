@@ -24,23 +24,17 @@ directory_list = [
 children = {'name': '__init__.py', 'children': None, 'type':'file'}
 
 # 目录结构
-# dir_map = [
-#     {
-#     'name': 'fk',  # 本文件夹名称
-#     'children': [{
-#         'name':directory,
-#         'type':'dir',
-#         'children':[children]
-#     } for directory in directory_list] + [children],
-#     'type':'dir'
-#     }
-# ]
-
-dir_map = [{
+dir_map = [
+    {
+    'name': 'fk',  # 本文件夹名称
+    'children': [{
         'name':directory,
         'type':'dir',
         'children':[children]
-    } for directory in directory_list] + [children]
+    } for directory in directory_list] + [children],
+    'type':'dir'
+    }
+]
 
 
 # 创建文件夹及文件
