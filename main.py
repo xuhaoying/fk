@@ -1,4 +1,4 @@
-from fk import Fk, simple_template
+from fk import Fk, simple_template, redirect, render_json, render_file
 from fk.session import session
 from fk.view import Controller
 
@@ -29,7 +29,8 @@ class Login(BaseView):
         session.push(request, 'user', user)
 
         # 返回登录成功提示和首页链接
-        return '登录成功， <a href="/">返回</a>'
+        # return '登录成功， <a href="/">返回</a>'
+        return redirect("/")
 
 
 # 登出视图
@@ -38,7 +39,23 @@ class Logout(SessionView):
         # 从当前会话中删除 user
         session.pop(request, 'user')
         # 返回登出成功提示和首页链接
-        return '登出成功， <a href="/">返回</a>'
+        # return '登出成功， <a href="/">返回</a>'
+        return redirect("/")
+
+
+class API(BaseView):
+    def get(self, request):
+        data = {
+            "name": "001",
+            "age": 11,
+            "address": "Unknown"
+        }
+        return render_json(data)
+
+
+class Download(BaseView):
+    def get(self, request):
+        return render_file("main.py")
 
 
 #  URL 和 处理函数 的分离
@@ -58,6 +75,16 @@ fk_url_map = [
         'view': Logout,
         'endpoint': 'logout',
     },
+    {
+        'url': '/api',
+        'view': API,
+        'endpoint': 'api',
+    },
+    {
+        'url': '/download',
+        'view': Download,
+        'endpoint': 'download',
+    },
 ]
 
 
@@ -65,16 +92,6 @@ app = Fk()
 
 index_controller = Controller('index', fk_url_map)
 app.load_controller(index_controller)
-
-
-# @app.route('/index', methods=['GET'])
-# def index():
-#     return "<h1>路由测试</h1>"
-
-# @app.route('/test/js')
-# def test_js():
-#     return '<script src="/static/test.js"></script>'
-
 
 
 

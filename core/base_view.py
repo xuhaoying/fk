@@ -1,5 +1,6 @@
 from fk.view import View
 from fk.session import AuthSession, session
+from fk import redirect
 
 class BaseView(View):
     # 定义支持的请求方法，默认支持 GET 和 POST 方法
@@ -33,7 +34,8 @@ class AuthLogin(AuthSession):
     # 如果没有验证通过，则返回一个链接点击到登录页面
     @staticmethod
     def auth_fail_callback(request, *args, **options):
-        return '<a href="/login">登录</a>'
+        # return '<a href="/login">登录</a>'
+        return redirect("/login")
     
     # 验证逻辑，如果 user 这个键不在会话当中，则验证失败，反之则成功
     @staticmethod

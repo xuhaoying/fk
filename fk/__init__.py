@@ -1,4 +1,5 @@
 import os
+import json
 from werkzeug.serving import run_simple
 from werkzeug.wrappers import Response
 from fk.wsgi_adapter import wsgi_app
@@ -131,7 +132,10 @@ class Fk(object):
         status = 200
         # 定义响应体类型
         content_type = 'text/html'
-
+        
+        # 判断，如果返回值是 Response 类型，则直接返回
+        if isinstance(rep, Response):
+            return rep
         
         # 返回 WSGI 规定的响应体给 WSGI 模块
         return Response(rep,
@@ -236,7 +240,55 @@ class Fk(object):
             self.bind_view(rule['url'], rule['view'], name+'.'+rule['endpoint'])
 
 
-# 模板引擎借口
 def simple_template(path, **options):
+    """模板引擎接口"""
     return replace_template(Fk, path, **options)
+
+def redirect(url, status_code=302):
+    """URL 重定向方法"""
+    # 定义一个响应体
+    response = Response('', status=status_code)
+    # 为响应体的报头中的 Location 参数与 URL 进行绑定， 通知客户端自动跳转
+    response.headers['Location'] = url
+    # 返回响应体
+    return response
+
+
+def render_json(data):
+    """封装 json 数据响应包"""
+    # 定义默认文件类型为纯文本
+    content_type = "text/plain"
+
+    # 如果是 Dict 或者 List 类型， 则转换为 json 格式数据
+    if isinstance(data, dict) or isinstance(data, list):
+        data = json.dumps(data)
+        # 定义文件类型为 json 格式
+        content_type = "application/json"
+    
+    # 返回封装完的响应体
+    return Response(data, 
+    content_type="%s; charset=UTF-8" % content_type,
+    status=200)
+
+def render_file(file_path, file_name=None):
+    """返回让客户端保存文件到本地的响应体"""
+    # 怕段服务器是否有该文件，没有则返回 404 错误
+    if os.path.exists(file_path):
+        # 读取文件内容
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        
+        # 如果没有设置文件名，则以"/"分割路径，取最后一项为文件名
+        if file_name is None:
+            file_name = file_path.split('/')[-1]
+        
+        # 封装响应报头，指定为附件类型，并定义下载的文件名
+        headers = {
+            "Content-Disposition": "attachment; filename={}".format(file_name)
+        }
+        # 返回响应体
+        return Response(content, headers=headers, status=200)
+    
+    # 如果不存在该文件，返回 404 错误
+    return ERROR_MAP["404"]
 
