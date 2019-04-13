@@ -47,7 +47,7 @@ class Fk(object):
         self.function_map = {}  # 存放 Endpoint 与 请求处理函数 的映射
         # 静态资源本地存放路径，默认放在应用所在目录的 static 文件夹下
         self.static_folder = static_folder  
-        self.route = Route(self)  # 路由装饰器
+        # self.route = Route(self)  # 路由装饰器
         # 模板文件本地存放路径， 默认放在应用所在目录下的 templates 文件夹下
         self.template_folder = template_folder  
         # 为类的 template_folder 初始化，供上面的置换模板引擎调用

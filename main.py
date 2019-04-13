@@ -10,6 +10,7 @@ class Index(SessionView):
     def get(self, request):
         # 获取当前会话中的 user 值
         user = session.get(request, 'user')
+        print('Index get user >> ', user)
         # 把 user 的值用模板引擎置换到页面中并返回
         return simple_template(
             'index.html', user=user, message="Hello world!")
@@ -40,13 +41,6 @@ class Logout(SessionView):
         return '登出成功， <a href="/">返回</a>'
 
 
-class Test(Index):
-    def post(self, request):
-        return "这是一个 POST 请求"
-
-
-app = Fk()
-
 #  URL 和 处理函数 的分离
 fk_url_map = [
     {
@@ -66,6 +60,9 @@ fk_url_map = [
     },
 ]
 
+
+app = Fk()
+
 index_controller = Controller('index', fk_url_map)
 app.load_controller(index_controller)
 
@@ -81,4 +78,4 @@ app.load_controller(index_controller)
 
 
 
-app.run(port=8888)
+app.run(port=9993)

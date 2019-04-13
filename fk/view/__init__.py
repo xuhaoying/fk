@@ -23,7 +23,7 @@ class View(object):
         # 为处理函数绑定属性
         func.view_class = cls
         func.__name__ = name
-        func.__dic__ = cls.__doc__
+        func.__doc__ = cls.__doc__
         func.__module__ = cls.__module__
         func.methods = cls.methods
 

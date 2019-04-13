@@ -38,6 +38,7 @@ class AuthLogin(AuthSession):
     # 验证逻辑，如果 user 这个键不在会话当中，则验证失败，反之则成功
     @staticmethod
     def auth_logic(request, *args, **options):
+        print("'user' in session.map(request)", 'user' in session.map(request))
         if 'user' in session.map(request):
             return True
         return False
@@ -47,7 +48,8 @@ class AuthLogin(AuthSession):
 class SessionView(BaseView):
     # 验证类装饰器
     @AuthLogin.auth_session
-    def dispatch_request(self, request, *args, **kwargs):
+    def dispatch_request(self, request, *args, **options):
+        print("SessionView")
         # 结合装饰器内部的逻辑，调用继承的子类的 dispatch_request 方法
         return super(SessionView, self).dispatch_request(
                 request, *args, **options)

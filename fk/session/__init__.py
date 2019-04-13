@@ -15,6 +15,7 @@ def create_session_id():
 
 # 从请求中获取 Session ID
 def get_session_id(request):
+    # print("request.cookies.get('session_id', '') >> ", request.cookies.get('session_id', ''))
     return request.cookies.get('session_id', '')
 
 # 会话
@@ -60,7 +61,7 @@ class Session(object):
         # 如果不存在，则先初始化为空的字典，再添加数据键值对
         if session in self.__session_map__:
             # 直接对当前会话添加数据
-            self.__session_map__[session_id][item] = value
+            self.__session_map__[get_session_id(request)][item] = value
         else:
             # 初始化当前会话
             self.__session_map__[session_id] = {}
@@ -117,6 +118,7 @@ class AuthSession(object):
     @classmethod
     def auth_session(cls, f, *args, **options):
         def decorator(obj, request):
+            print('check', cls.auth_logic(request, *args, **options))
             return f(obj, request) if cls.auth_logic(
                     request, *args, **options
                 ) else cls.auth_fail_callback(
