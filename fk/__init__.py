@@ -5,6 +5,8 @@ from fk.wsgi_adapter import wsgi_app
 import fk.exceptions as exceptions
 from fk.helper import parse_static_key
 from fk.route import Route
+from fk.template_engine import replace_template
+from fk.session import create_session_id, session
 
 # 定义常见的服务异常的响应体
 ERROR_MAP = {
@@ -33,16 +35,25 @@ class ExecFunc(object):
 
 # 框架
 class Fk(object):
+    # 类属性，模板文件本地存放目录
+    template_folder = None
     
     # 实例化方法
-    def __init__(self, static_folder='static'):
+    def __init__(self, static_folder='static', template_folder='templates', session_path='.session'):
         self.host = '127.0.0.1'  # 默认主机
         self.port = 23333  # 默认端口
         self.url_map = {}  # 存放 URL 与 Endpoint 的映射
         self.static_map = {}  # 存放 URL 与 静态资源 的映射
         self.function_map = {}  # 存放 Endpoint 与 请求处理函数 的映射
-        self.static_folder = static_folder  # 静态资源本地存放路径，默认放在应用所在目录的 static 文件夹下
+        # 静态资源本地存放路径，默认放在应用所在目录的 static 文件夹下
+        self.static_folder = static_folder  
         self.route = Route(self)  # 路由装饰器
+        # 模板文件本地存放路径， 默认放在应用所在目录下的 templates 文件夹下
+        self.template_folder = template_folder  
+        # 为类的 template_folder 初始化，供上面的置换模板引擎调用
+        Fk.template_folder = self.template_folder  
+        # 会话记录默认存放在应用同目录下的 .session 文件夹中
+        self.session_path = session_path
 
     # 路由
     def dispatch_request(self, request):
@@ -58,10 +69,24 @@ class Fk(object):
             # 如果不以静态资源文件夹名为首， 则从 URL 与节点的映射表中获取节点
             endpoint = self.url_map.get(url, None)
 
-        # 定义响应报头，Server 参数的值表示运行的服务名，通常有 IIS， Apache，Tomcat，Nginx等，这里自定义为 Fk 0.1
-        headers = {
-            'Server': 'Fk 0.1'
-        }
+        # 从请求中取出 cookie
+        cookies = request.cookies
+
+        # 如果 session_id 不在cookies中， 则通知客户端设置 cookie
+        if 'session_id' not in cookies:
+            headers = {
+                # 定义 Set-Cookie 属性，通知客户端记录 Cookie
+                # create_session_id 是生成一个无规律唯一字符串的方法
+                'Set-Cookie': 'session_id=%s' % create_session_id(),
+                # 定义响应报头的 Server 属性
+                'Server': 'Fk 0.1'
+            }
+        else:
+            headers = {
+                # 定义响应报头，Server 参数的值表示运行的服务名，通常有 IIS， Apache，Tomcat，Nginx等，这里自定义为 Fk 0.1
+                'Server': 'Fk 0.1'
+            }
+
 
         # 如果节点为空， 返回 404
         if endpoint is None:
@@ -88,8 +113,11 @@ class Fk(object):
                 # 未知请求方法
                 # 返回 401 错误响应体
                 return ERROR_MAP['401']
+
         elif exec_function.func_type == 'view':
+            # 视图处理逻辑
             rep = exec_function.func(request)
+        
         elif exec_function.func_type == 'static':
             # 静态逻辑处理
             # 静态资源返回的是一个预先封装好的响应体， 所以直接返回
@@ -104,6 +132,7 @@ class Fk(object):
         # 定义响应体类型
         content_type = 'text/html'
 
+        
         # 返回 WSGI 规定的响应体给 WSGI 模块
         return Response(rep,
                     content_type='{}; charset=UTF-8'.format(content_type),
@@ -124,18 +153,33 @@ class Fk(object):
         if port:
             self.port = port
 
-        self.function_map['static'] = ExecFunc(func=self.dispatch_static, func_type='static')
+        # 映射静态资源处理函数，所有静态资源处理函数都是静态资源路由
+        self.function_map['static'] = ExecFunc(
+                func=self.dispatch_static, func_type='static')
+        
+        # 如果会话记录存放目录不存在，则创建它
+        if not os.path.exists(self.session_path):
+            os.mkdir(self.session_path)
+        
+        # 设置会话记录存放目录
+        session.set_storage_path(self.session_path)
+        
+        # 加载本地缓存的 session 记录
+        session.load_local_session()
+
 
         # 把框架本身和其他几个配置参数传给 werkzeug 里的 run_simple
         run_simple(hostname=self.host, port=self.port,
                 application=self, **options)
 
-        # 映射静态资源处理函数， 所有静态资源处理函数都是静态资源路由
-        self.function_map['static'] = ExecFunc(func=self.dispatch_static, func_type='static')
 
     # 框架被 WSGI 调用入口的方法
     def __call__(self, environ, start_response):
         return wsgi_app(self, environ, start_response)
+
+    # 添加视图规则
+    def bind_view(self, url, view_class, endpoint):
+        self.add_url_rule(url, func=view_class.get_func(endpoint), func_type='view')
 
     # 添加路由规则
     def add_url_rule(self, url, func, func_type, endpoint=None, **options):
@@ -181,4 +225,18 @@ class Fk(object):
         else:
             # 返回 404 页面
             return ERROR_MAP['404']
+
+    # 控制器加载
+    def load_controller(self, controller):
+        # 获取控制器名字
+        name = controller.__name__()
+        # 遍历控制器的 `url_map` 成员
+        for rule in controller.url_map:
+            # 绑定 URL 与 视图对象， 最后的节点名格式为 `控制器名` + "." + 定义的节点名
+            self.bind_view(rule['url'], rule['view'], name+'.'+rule['endpoint'])
+
+
+# 模板引擎借口
+def simple_template(path, **options):
+    return replace_template(Fk, path, **options)
 
