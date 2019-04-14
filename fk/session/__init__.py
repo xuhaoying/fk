@@ -59,7 +59,7 @@ class Session(object):
 
         # 如果这个 Session ID 已存在与映射表中，则直接为其添加新的键值对
         # 如果不存在，则先初始化为空的字典，再添加数据键值对
-        if session in self.__session_map__:
+        if session_id in self.__session_map__:
             # 直接对当前会话添加数据
             self.__session_map__[get_session_id(request)][item] = value
         else:
