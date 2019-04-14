@@ -9,12 +9,6 @@ from fk.route import Route
 from fk.template_engine import replace_template
 from fk.session import create_session_id, session
 
-# 定义常见的服务异常的响应体
-ERROR_MAP = {
-    '401': Response('<h1>401 Unknown or unsupported method</h1>', content_type='text/html; charset=UTF-8', status=401),
-    '404': Response('<h1>404 Source Not Found<h1>', content_type='text/html; charset=UTF-8', status=404),
-    '503': Response('<h1>503 Unknown function type</h1>', content_type='text/html; charset=UTF-8',  status=503)
-}
 
 # 定义文件类型
 TYPE_MAP = {
@@ -57,6 +51,7 @@ class Fk(object):
         self.session_path = session_path
 
     # 路由
+    @exceptions.capture
     def dispatch_request(self, request):
         # 去掉 URL 中域名部分， 即从 http://xxx.com/path/file?xx=xx 中提取 path/file
         url = '/' +'/'.join(request.url.split('/')[3:]).split('?')[0]
@@ -89,9 +84,9 @@ class Fk(object):
             }
 
 
-        # 如果节点为空， 返回 404
+        # 如果节点为空， 抛出页面未找到异常
         if endpoint is None:
-            return ERROR_MAP['404']
+            raise exceptions.PageNotFoundError
 
         # 获取节点对应的执行函数
         exec_function = self.function_map[endpoint]
@@ -112,8 +107,8 @@ class Fk(object):
                     rep = exec_function.func()
             else:
                 # 未知请求方法
-                # 返回 401 错误响应体
-                return ERROR_MAP['401']
+                # 抛出请求方法不支持异常
+                raise exceptions.InvalidRequestMethodError
 
         elif exec_function.func_type == 'view':
             # 视图处理逻辑
@@ -125,8 +120,8 @@ class Fk(object):
             return exec_function.func(url)
         else:
             # 未知类型处理
-            # 返回 503 错误响应体
-            return ERROR_MAP['503']
+            # 抛出未知处理类型异常
+            raise exceptions.UnknownFuncError
 
         # 定义 200 状态码表示响应成功
         status = 200
@@ -186,6 +181,7 @@ class Fk(object):
         self.add_url_rule(url, func=view_class.get_func(endpoint), func_type='view')
 
     # 添加路由规则
+    @exceptions.capture
     def add_url_rule(self, url, func, func_type, endpoint=None, **options):
         # 如果节点未命名， 使用处理函数的名字
         if endpoint is None:
@@ -206,13 +202,14 @@ class Fk(object):
         self.function_map[endpoint] = ExecFunc(func, func_type, **options)
     
     # 静态资源调路由
+    @exceptions.capture
     def dispatch_static(self, static_path):
         """
         静态资源 URL 的路由
         用来选匹配的 URL 并返回对应类型和文件内容封装成的响应体
         如果找不到则返回 404 状态页。
         """
-        # 判断资源文件是否在静态资源规则中， 如果不存在，返回 404 状态页
+        # 判断资源文件是否在静态资源规则中， 如果不存在，抛出页面未找到异常
         if os.path.exists(static_path):
             # 获取资源文件后缀
             key = parse_static_key(static_path)
@@ -227,8 +224,8 @@ class Fk(object):
             # 封装并返回响应体
             return Response(rep, content_type=doc_type)
         else:
-            # 返回 404 页面
-            return ERROR_MAP['404']
+            # 抛出页面未找到异常
+            raise exceptions.PageNotFoundError
 
     # 控制器加载
     def load_controller(self, controller):
@@ -270,10 +267,15 @@ def render_json(data):
     content_type="%s; charset=UTF-8" % content_type,
     status=200)
 
+@exceptions.capture
 def render_file(file_path, file_name=None):
     """返回让客户端保存文件到本地的响应体"""
-    # 怕段服务器是否有该文件，没有则返回 404 错误
+    # 怕段服务器是否有该文件，抛出文件不存在异常
     if os.path.exists(file_path):
+        # 判断是否有读取权限，没有则抛出权限不足异常
+        if not os.access(file_path, os.R_OK):
+            raise exceptions.RequireReadPermissionError
+
         # 读取文件内容
         with open(file_path, 'rb') as f:
             content = f.read()
@@ -289,6 +291,6 @@ def render_file(file_path, file_name=None):
         # 返回响应体
         return Response(content, headers=headers, status=200)
     
-    # 如果不存在该文件，返回 404 错误
-    return ERROR_MAP["404"]
+    # 如果不存在该文件，抛出文件不存在异常
+    return exceptions.FileNotExistsError
 
