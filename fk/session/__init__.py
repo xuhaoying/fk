@@ -118,7 +118,6 @@ class AuthSession(object):
     @classmethod
     def auth_session(cls, f, *args, **options):
         def decorator(obj, request):
-            print('check', cls.auth_logic(request, *args, **options))
             return f(obj, request) if cls.auth_logic(
                     request, *args, **options
                 ) else cls.auth_fail_callback(

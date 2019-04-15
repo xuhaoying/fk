@@ -20,7 +20,7 @@ class Index(SessionView):
 # 登录视图
 class Login(BaseView):
     def get(self, request):
-        # 从 get 请求中获取 state vanshu， 如果不存在则返回默认值1
+        # 从 get 请求中获取 state ， 如果不存在则返回默认值1
         state = request.args.get('state', '1')
         # 通过模板返回给用户一个登录页面，当 state 不为 1 时，则免信息返回用户名错误或不存在
         return simple_template('layout.html', title="Login", 
@@ -124,7 +124,6 @@ fk_url_map = [
 ]
 
 
-
 @exceptions.reload(404)
 def test_reload():
     return '<h1>测试重载 404 异常</h1>'
@@ -135,5 +134,5 @@ index_controller = Controller('index', fk_url_map)
 app.load_controller(index_controller)
 
 
-
 app.run(port=9993)
+
